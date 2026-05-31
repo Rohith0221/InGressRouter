@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import "dotenv/config";
+
 
 const JWT_secret = process.env.JWT_SECRET;
 
@@ -15,12 +17,12 @@ export const requireAdminAuth = (req: Request, res: Response, next: NextFunction
     const token = authHeader.split(' ')[1];
 
     try {
-        const decoded = jwt.verify(token,  JWT_secret);
+        const decoded = jwt.verify(token, JWT_secret);
 
         (req as any).user = decoded;
         next();
     }
     catch (error) {
-        res.status(403).json({ error: "Token is invalid or expired"})\
+        res.status(403).json({ error: "Token is invalid or expired"});
     }
 }

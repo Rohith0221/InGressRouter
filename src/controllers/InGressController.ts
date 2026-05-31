@@ -1,5 +1,5 @@
 import {Request, Response} from 'express';
-import { db } from '../db';
+import { db } from '../db/pool';
 
 export const ingestWebhook = async (req : Request, res : Response): Promise<void> => {
 
