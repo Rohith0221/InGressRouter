@@ -12,6 +12,6 @@
         "skipLibCheck": true,
         "resolveJsonModule": true
     },
-    "include": ["src/**/*"],
+    "include": ["src/**/*", "generateToken.js"],
     "exclude": ["node_modules", "**/*.test.ts"]
 }

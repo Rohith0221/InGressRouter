@@ -54,6 +54,10 @@ export const replayDlqEvent = async (req: Request, res: Response): Promise<void>
         await client.query(
             'UPDATE dlq_events SET replayed = TRUE WHERE id = $1', [id]
         );
+
+        await client.query('COMMIT');
+
+        res.status(200).json({ status: "Event replayed successfully"});
         
     }
     catch (error) {
