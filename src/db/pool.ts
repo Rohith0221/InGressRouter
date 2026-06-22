@@ -2,7 +2,7 @@ import { Pool} from 'pg';
 import "dotenv/config";
 
 export const db = new Pool({
-    connectionString: process.env.DATABASE_URL_TEST,
+    connectionString: process.env.DATABASE_URL_PROD,
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,

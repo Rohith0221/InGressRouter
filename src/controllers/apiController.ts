@@ -4,9 +4,30 @@ import { db } from '../db/pool';
 export const getEvents = async (req: Request, res: Response): Promise<void> => {
 
     try {
+        
+        const query = `
+        SELECT
+            e.id,
+            ep.slug,
+            e.payload,
+            e.processed,
+            e.created_at AS timestamp
+        FROM events e
+        JOIN endpoints ep ON e.endpoint_id = ep.id
+        ORDER BY e.created_at DESC
+        LIMIT 100`;
 
-        const result = await db.query('SELECT id, endpoint_id, payload, processed, created_at FROM events ORDER BY created_at DESC LIMIT 100');
-        res.status(200).json(result.rows);
+        const result = await db.query(query);
+
+        const formattedData = result.rows.map(row => ({
+            id: row.id,
+            path: row.slug,
+            payload: row.payload,
+            timestamp: row.timestamp,
+            status: row.processed ? 200 : 202
+        }));
+
+        res.status(200).json(formattedData);
     }
     catch (error) {
         console.error(" Failed to fetch events:", error);

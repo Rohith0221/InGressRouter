@@ -8,7 +8,7 @@ export const requireAdminAuth = (req: Request, res: Response, next: NextFunction
     const authHeader = req.headers.authorization;
 
     console.log("\n AUTH DIAGNOSTICS  \n ");
-    console.log('1. Header Received:', authHeader);
+    console.log('1. Header Received:');
 
     if (!authHeader || !authHeader.startsWith("Bearer "))
     {
@@ -21,7 +21,7 @@ export const requireAdminAuth = (req: Request, res: Response, next: NextFunction
     try {
 
         console.log(" Attempting to verify token....");
-        const decoded = jwt.verify(token, JWT_SECRET);
+        const decoded = jwt.verify(token, JWT_SECRET as string);
 
         (req as any).user = decoded;
 
