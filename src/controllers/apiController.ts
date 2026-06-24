@@ -1,5 +1,10 @@
 import {Request, Response} from 'express';
 import { db } from '../db/pool';
+import jwt from 'jsonwebtoken';
+require('dotenv').config();
+
+const JWT_SECRET = process.env.JWT_SECRET as string;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD as string;
 
 export const getEvents = async (req: Request, res: Response): Promise<void> => {
 
@@ -116,4 +121,42 @@ export const replayDlqEvent = async (req: Request, res: Response): Promise<void>
     finally {
         client.release();
     }
-}
+};
+
+export const generateToken = (req: Request, res: Response) => {
+
+    const { secretKey } = req.body;
+
+    console.log(` \n Extracted Key: ${secretKey ? 'YES' : 'NO'}`);
+
+    if (secretKey.trim() != ADMIN_PASSWORD.trim()) {
+        
+        console.log(" Password Rejected!");
+        return res.status(401).json({ error: "Invalid Admin Credentials"});
+    }
+
+    console.log(" \n Password Accepted!");
+    const token = jwt.sign({ role: "admin", name: "InGress Admin" }, JWT_SECRET, { expiresIn: '10m' });
+
+    res.cookie('ingress_admin_jwt', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 10 * 60 * 1000
+    });
+
+    console.log("\n Cookie Attached!");
+
+    res.status(200).json({ message: "Authentication successful"});
+};
+
+export const clearToken = (req: Request, res: Response) => {
+
+    res.clearCookie('ingress_admin_jwt');
+    res.status(200).json({ message: "Logged out"});
+};
+
+export const verifySession = ( req: Request, res: Response ) => {
+
+    res.status(200).json({ valid: true });
+};

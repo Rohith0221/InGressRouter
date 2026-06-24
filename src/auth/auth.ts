@@ -5,27 +5,26 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 export const requireAdminAuth = (req: Request, res: Response, next: NextFunction): void => {
 
-    const authHeader = req.headers.authorization;
+    const token = req.cookies.ingress_admin_jwt;
 
     console.log("\n AUTH DIAGNOSTICS  \n ");
     console.log('1. Header Received:');
 
-    if (!authHeader || !authHeader.startsWith("Bearer "))
+    if (!token)
     {
-        res.status(401).json({ error: " Missing or invalid Authorization header"});
+        console.log(" Blocked Login Attempt: No cookie found!")
+        res.status(401).json({ error: " Missing or invalid Auth cookie" });
+        return;
     }
-
-    const token = authHeader.split(' ')[1];
-
 
     try {
 
-        console.log(" Attempting to verify token....");
+        console.log(" Attempting to verify cookie token....");
         const decoded = jwt.verify(token, JWT_SECRET as string);
 
         (req as any).user = decoded;
 
-        console.log('4. Success!');
+        console.log('4. Verification Success!');
         next();
     }
     catch (error: any) {
@@ -33,9 +32,7 @@ export const requireAdminAuth = (req: Request, res: Response, next: NextFunction
         console.error("\n Verification failed: \n");
         console.error(" Error Name:", error.name);
         console.error(" Error Message:", error.message);
-        console.error(" Token Length:", token.length);
 
-
-        res.status(403).json({ error: "Token is invalid or expired"});
+        res.status(403).json({ error: "Session is invalid or expired"});
     }
 }

@@ -2,16 +2,19 @@ import express, { Application, Request, Response } from 'express';
 import helmet from 'helmet';
 import InGressRouter from './routes/InGress';
 import apiRouter from './routes/api';
+import cookieParser from 'cookie-parser';
 
 const app: Application = express();
 const cors = require("cors");
 
 app.use(helmet());
+app.use(cookieParser());
 
 app.use(cors({
     origin: "http://localhost:5173",
     methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"]
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true
 }));
 
 app.use('/ingress', InGressRouter);
