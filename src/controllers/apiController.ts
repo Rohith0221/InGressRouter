@@ -1,15 +1,16 @@
-import {Request, Response} from 'express';
+import { Request, Response } from 'express';
 import { db } from '../db/pool';
 import jwt from 'jsonwebtoken';
-require('dotenv').config();
+import bcrypt from 'bcrypt';
+import "dotenv/config";
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD as string;
+const ADMIN_PASSWORD_HASH = (process.env.ADMIN_PASSWORD_HASH as string).trim();
 
 export const getEvents = async (req: Request, res: Response): Promise<void> => {
 
     try {
-        
+
         const query = `
         SELECT
             e.id,
@@ -35,7 +36,7 @@ export const getEvents = async (req: Request, res: Response): Promise<void> => {
         res.status(200).json(formattedData);
     }
     catch (error) {
-        console.error(" Failed to fetch events:", error);
+        console.error("[getEvents] Failed to fetch events:", error);
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
@@ -45,7 +46,7 @@ export const getDLQEvents = async (req: Request, res: Response): Promise<void> =
     try {
 
         const query = `
-        SELECT 
+        SELECT
             dlq.id,
             dlq.endpoint_id,
             dlq.created_at AS timestamp,
@@ -64,39 +65,36 @@ export const getDLQEvents = async (req: Request, res: Response): Promise<void> =
             id: row.id,
             timestamp: row.timestamp,
             payload: row.payload,
-            error: row.error,
+            error: row.error_reason,
             path: row.path,
         }));
-        // const result = await db.query('SELECT id, endpoint_id, payload, created_at FROM dlq_events WHERE replayed = FALSE ORDER BY created_at DESC LIMIT 100');
+
         res.status(200).json(formattedData);
     }
     catch (error) {
-        console.error("Failed to fetch DLQ events:", error);
-        res.status(500).json({ error: " Internal Server Error"});
+        console.error("[getDLQEvents] Failed to fetch DLQ events:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
 };
 
 export const replayDlqEvent = async (req: Request, res: Response): Promise<void> => {
 
-    const {id} = req.params;
-
-    console.log(`\n [REPLAY INITIATED] Target Event ID: ${id}`);
-    console.log(`\n [REPLAY AUTH] User Token Present: ${!!req.headers.authorization}`);
+    const { id } = req.params;
     const client = await db.connect();
 
     try {
         await client.query('BEGIN');
 
         const dlqResult = await client.query(
-            'SELECT endpoint_id, payload FROM dlq_events WHERE id = $1 AND replayed = FALSE FOR UPDATE',[id]);
+            'SELECT endpoint_id, payload FROM dlq_events WHERE id = $1 AND replayed = FALSE FOR UPDATE', [id]);
 
         if (dlqResult.rowCount === 0) {
-            res.status(404).json({ error: 'Event not found or already replayed'});
+            res.status(404).json({ error: 'Event not found or already replayed' });
             await client.query('ROLLBACK');
             return;
         }
 
-        const {endpoint_id, payload} = dlqResult.rows[0];
+        const { endpoint_id, payload } = dlqResult.rows[0];
 
         await client.query(
             'INSERT INTO events (endpoint_id, payload) VALUES ($1, $2)',
@@ -109,33 +107,32 @@ export const replayDlqEvent = async (req: Request, res: Response): Promise<void>
 
         await client.query('COMMIT');
 
-        res.status(200).json({ status: "Event replayed successfully"});
-        
+        res.status(200).json({ status: "Event replayed successfully" });
     }
     catch (error) {
-
         await client.query('ROLLBACK');
-        console.error(`\n [REPLAY ERROR] Failed to replay DLQ event: ${error}`);
-        res.status(500).json({ error: "Failed to replay DLQ event"});
+        console.error("[replayDlqEvent] Failed to replay DLQ event:", error);
+        res.status(500).json({ error: "Failed to replay DLQ event" });
     }
     finally {
         client.release();
     }
 };
 
-export const generateToken = (req: Request, res: Response) => {
+export const generateToken = async (req: Request, res: Response) => {
 
     const { secretKey } = req.body;
 
-    console.log(` \n Extracted Key: ${secretKey ? 'YES' : 'NO'}`);
-
-    if (secretKey.trim() != ADMIN_PASSWORD.trim()) {
-        
-        console.log(" Password Rejected!");
-        return res.status(401).json({ error: "Invalid Admin Credentials"});
+    if (!secretKey) {
+        return res.status(400).json({ error: "Password is required" });
     }
 
-    console.log(" \n Password Accepted!");
+    const isValid = await bcrypt.compare(secretKey, ADMIN_PASSWORD_HASH);
+
+    if (!isValid) {
+        return res.status(401).json({ error: "Invalid admin credentials" });
+    }
+
     const token = jwt.sign({ role: "admin", name: "InGress Admin" }, JWT_SECRET, { expiresIn: '10m' });
 
     res.cookie('ingress_admin_jwt', token, {
@@ -145,18 +142,14 @@ export const generateToken = (req: Request, res: Response) => {
         maxAge: 10 * 60 * 1000
     });
 
-    console.log("\n Cookie Attached!");
-
-    res.status(200).json({ message: "Authentication successful"});
+    res.status(200).json({ message: "Authentication successful" });
 };
 
 export const clearToken = (req: Request, res: Response) => {
-
     res.clearCookie('ingress_admin_jwt');
-    res.status(200).json({ message: "Logged out"});
+    res.status(200).json({ message: "Logged out" });
 };
 
-export const verifySession = ( req: Request, res: Response ) => {
-
+export const verifySession = (req: Request, res: Response) => {
     res.status(200).json({ valid: true });
 };

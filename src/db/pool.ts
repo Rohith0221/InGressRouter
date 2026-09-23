@@ -9,6 +9,5 @@ export const db = new Pool({
 });
 
 db.on('error', (err) => {
-    console.error("Unexpected error on idle database client", err);
-    process.exit(-1);
+    console.error("[DB POOL] Unexpected idle client error — pool will recover:", err.message);
 });
